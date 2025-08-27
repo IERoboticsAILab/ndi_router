@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Main Orchestrator</h1>
+<ul>
+  {% for p in plugins %}
+  <li><a href="/ui/{{ p }}">{{ p | upper }}</a></li>
+  {% endfor %}
+  {% if not plugins %}
+  <li>No plugins loaded</li>
+  {% endif %}
+</ul>
+{% endblock %}
+
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=Main Orchestrator Host
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/lab-mqtt
+ExecStart=/opt/lab-mqtt/.venv/bin/uvicorn orchestrator_host.host:app --host 0.0.0.0 --port 8080
+User=lab
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+

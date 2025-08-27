@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>NDI Router</h1>
+<div>
+  <label>Device:</label>
+  <select id="deviceSelect"></select>
+</div>
+<div>
+  <label>Source:</label>
+  <select id="sourceSelect"></select>
+</div>
+<div style="margin-top: 8px;">
+  <button id="btnStart">Start</button>
+  <button id="btnSetInput">Set Input</button>
+  <button id="btnStop">Stop</button>
+  <span id="msg" style="margin-left: 8px;"></span>
+  </div>
+
+<script>
+async function loadDevices() {
+  const r = await fetch('/api/ndi/devices');
+  const j = await r.json();
+  const sel = document.getElementById('deviceSelect');
+  sel.innerHTML = '';
+  const devices = j.devices || {};
+  const ids = Object.keys(devices);
+  ids.forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id; opt.text = id;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadSources() {
+  const r = await fetch('/api/ndi/sources');
+  const j = await r.json();
+  const sel = document.getElementById('sourceSelect');
+  sel.innerHTML = '';
+  (j.sources || []).forEach(s => {
+    const opt = document.createElement('option'); opt.value = s; opt.text = s; sel.appendChild(opt);
+  });
+}
+
+async function send(action) {
+  const device_id = document.getElementById('deviceSelect').value;
+  const source = document.getElementById('sourceSelect').value;
+  const msg = document.getElementById('msg');
+  try {
+    const r = await fetch('/api/ndi/send', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_id, source, action})
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || 'Request failed');
+    msg.textContent = 'OK'; msg.style.color = 'green';
+  } catch (e) {
+    msg.textContent = e.message || String(e); msg.style.color = 'red';
+  }
+}
+
+document.getElementById('btnStart').onclick = () => send('start');
+document.getElementById('btnSetInput').onclick = () => send('set_input');
+document.getElementById('btnStop').onclick = () => send('stop');
+
+loadDevices();
+loadSources();
+setInterval(loadDevices, 5000);
+</script>
+{% endblock %}
+
+

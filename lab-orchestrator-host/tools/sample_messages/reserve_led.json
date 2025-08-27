@@ -1,0 +1,1 @@
+{ "req_id":"1","actor":"app-itrash","action":"reserve","params":{"device_id":"rpi-01","lease_s":30} }
