@@ -9,7 +9,7 @@ modules:
     record_start_cmd_template: '/usr/local/bin/ffmpeg -y -f libndi_newtek -i "{source}" -c copy /home/pi/ndi_{device_id}.mp4'
     record_stop_cmd: 'pkill -INT ffmpeg'
 mqtt:
-  host: 127.0.0.1
+  host: 10.205.10.7
   port: 1883
   username: mqtt
   password: 123456789
