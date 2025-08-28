@@ -5,7 +5,7 @@ class LEDModule(Module):
     name = "led"
 
     def handle_cmd(self, action: str, params: Dict[str, Any]) -> tuple[bool, str | None, dict]:
-        # Stub logic — replace with real LED driver calls
+        """Simple LED control stub. Replace with real driver calls as needed."""
         if action == "off":
             self.state = "idle"
             self.fields.update({"mode": "off"})

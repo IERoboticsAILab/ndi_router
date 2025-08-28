@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from importlib import import_module
@@ -78,4 +78,15 @@ def on_start():
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "plugins": list(_plugins.keys())})
 
+
+@app.get("/api/registry", response_class=JSONResponse)
+async def api_registry():
+    snap = registry.snapshot()
+    snap["ts"] = now_iso()
+    snap["modules"] = list(_plugins.keys())
+    return JSONResponse(content=snap)
+
+@app.get("/ui/devices", response_class=HTMLResponse)
+async def devices_page(request: Request):
+    return templates.TemplateResponse("devices.html", {"request": request, "title": "Devices", "plugins": list(_plugins.keys())})
 

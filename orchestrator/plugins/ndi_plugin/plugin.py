@@ -23,7 +23,7 @@ class NDIPlugin(OrchestratorPlugin):
         # Keep passthrough actions strictly to device module commands; reserve/release/schedule are host-level in the old code
         passthrough = {"start", "stop", "set_input", "record_start", "record_stop"}
         if action in passthrough:
-            dev_topic = f"/lab/devices/{device_id}/{self.module_name}/cmd"
+            dev_topic = f"/lab/device/{device_id}/{self.module_name}/cmd"
             self.ctx.mqtt.publish_json(dev_topic, payload, qos=1, retain=False)
             evt = ack(req_id, True, "DISPATCHED")
             self.ctx.mqtt.publish_json(f"/lab/orchestrator/{self.module_name}/evt", evt)
@@ -71,7 +71,7 @@ class NDIPlugin(OrchestratorPlugin):
                 continue
             env = {"req_id": str(uuid.uuid4()), "actor": f"host:{actor}", "ts": now_iso(), "action": c.get("action"), "params": c.get("params", {})}
             env["params"]["device_id"] = device_id
-            self.ctx.mqtt.publish_json(f"/lab/devices/{device_id}/{module}/cmd", env, qos=1, retain=False)
+            self.ctx.mqtt.publish_json(f"/lab/device/{device_id}/{module}/cmd", env, qos=1, retain=False)
 
     def api_router(self):
         r = APIRouter()
@@ -137,7 +137,7 @@ class NDIPlugin(OrchestratorPlugin):
                 "action": action,
                 "params": {"device_id": device_id, "source": source},
             }
-            dev_topic = f"/lab/devices/{device_id}/{self.module_name}/cmd"
+            dev_topic = f"/lab/device/{device_id}/{self.module_name}/cmd"
             self.ctx.mqtt.publish_json(dev_topic, payload, qos=1, retain=False)
             return {"ok": True, "dispatched": True, "device_id": device_id, "source": source, "action": action}
 

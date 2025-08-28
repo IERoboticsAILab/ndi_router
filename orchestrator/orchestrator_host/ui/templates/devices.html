@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Devices</h1>
+
+<div id="summary"></div>
+
+<table id="devicesTable" border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Device ID</th>
+      <th>Online</th>
+      <th>Labels</th>
+      <th>Modules</th>
+      <th>Feature</th>
+      <th>Updated</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+  </table>
+
+<h3 style="margin-top: 16px;">Locks</h3>
+<table id="locksTable" border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Holder</th>
+      <th>Expires (epoch)</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+  </table>
+
+<script>
+async function loadRegistry() {
+  try {
+    const r = await fetch('/api/registry');
+    const reg = await r.json();
+    render(reg);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render(reg) {
+  const devices = reg.devices || {};
+  const locks = reg.locks || {};
+  const tbody = document.querySelector('#devicesTable tbody');
+  tbody.innerHTML = '';
+  Object.entries(devices).forEach(([id, d]) => {
+    const tr = document.createElement('tr');
+    const online = d.online === true || (d.status && d.status.online === true);
+    const labels = (d.labels || []).join(', ');
+    const modules = Array.isArray(d.modules) ? d.modules.join(', ') : '';
+    const updated = d.ts || (d.status && d.status.ts) || '';
+    tr.innerHTML = `<td>${esc(id)}</td><td>${online ? 'yes' : 'no'}</td><td>${esc(labels)}</td><td>${esc(modules)}</td><td>${esc(d.feature || '')}</td><td>${esc(updated)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const ltbody = document.querySelector('#locksTable tbody');
+  ltbody.innerHTML = '';
+  Object.entries(locks).forEach(([key, v]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(key)}</td><td>${esc(v.holder)}</td><td>${esc(v.exp)}</td>`;
+    ltbody.appendChild(tr);
+  });
+
+  const summary = document.getElementById('summary');
+  const count = Object.keys(devices).length;
+  const onlineCount = Object.values(devices).filter(d => d.online === true || (d.status && d.status.online === true)).length;
+  summary.textContent = `${onlineCount}/${count} online • updated ${esc(reg.ts || '')}`;
+}
+
+loadRegistry();
+setInterval(loadRegistry, 3000);
+</script>
+{% endblock %}
+
+

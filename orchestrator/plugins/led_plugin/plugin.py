@@ -21,7 +21,7 @@ class LEDPlugin(OrchestratorPlugin):
         # Keep passthrough actions to module commands only
         passthrough = {"effect", "solid", "off", "brightness"}
         if action in passthrough:
-            dev_topic = f"/lab/devices/{device_id}/{self.module_name}/cmd"
+            dev_topic = f"/lab/device/{device_id}/{self.module_name}/cmd"
             self.ctx.mqtt.publish_json(dev_topic, payload, qos=1, retain=False)
             evt = ack(req_id, True, "DISPATCHED")
             self.ctx.mqtt.publish_json(f"/lab/orchestrator/{self.module_name}/evt", evt)
@@ -66,7 +66,7 @@ class LEDPlugin(OrchestratorPlugin):
                 continue
             env = {"req_id": str(uuid.uuid4()), "actor": f"host:{actor}", "ts": now_iso(), "action": c.get("action"), "params": c.get("params", {})}
             env["params"]["device_id"] = device_id
-            self.ctx.mqtt.publish_json(f"/lab/devices/{device_id}/{module}/cmd", env, qos=1, retain=False)
+            self.ctx.mqtt.publish_json(f"/lab/device/{device_id}/{module}/cmd", env, qos=1, retain=False)
 
     def api_router(self):
         r = APIRouter()

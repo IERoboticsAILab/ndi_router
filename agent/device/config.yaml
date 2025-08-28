@@ -3,12 +3,10 @@ labels: ["zone-a", "rpi"]
 modules:
   ndi:
     # Choose and customize commands for your environment. Example uses yuri2 + ffmpeg.
-    ndi_path: 'export NDI_PATH=/usr/local/lib/libndi.so'
+    ndi_path: '/usr/local/lib/libndi.so'
     start_cmd_template: 'yuri_simple ndi_input[stream="{source}"] glx_window[fullscreen=True]'
-    stop_cmd: 'pkill -f "yuri_simple"'
     set_input_restart: true
     record_start_cmd_template: '/usr/local/bin/ffmpeg -y -f libndi_newtek -i "{source}" -c copy /home/pi/ndi_{device_id}.mp4'
-    record_stop_cmd: 'pkill -INT ffmpeg'
 mqtt:
   host: 10.205.10.7
   port: 1883

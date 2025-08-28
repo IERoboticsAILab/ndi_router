@@ -7,6 +7,7 @@
   <body>
     <nav>
       <a href="/">Home</a>
+      <a href="/ui/devices">Devices</a>
       {% for p in plugins or [] %}
       <a href="/ui/{{ p }}">{{ p | upper }}</a>
       {% endfor %}

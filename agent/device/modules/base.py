@@ -29,3 +29,7 @@ class Module(ABC):
         """Current status snapshot for publishing to MQTT."""
         from common import now_iso
         return {"state": self.state, "online": True, "ts": now_iso(), "fields": self.fields}
+
+    def shutdown(self) -> None:
+        """Called before a module is removed to allow cleanup. Optional override."""
+        return None
