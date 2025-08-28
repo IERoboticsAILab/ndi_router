@@ -33,3 +33,11 @@ class Module(ABC):
     def shutdown(self) -> None:
         """Called before a module is removed to allow cleanup. Optional override."""
         return None
+
+    def on_agent_connect(self) -> None:
+        """Called when the agent connects to the broker. Modules can perform setup.
+
+        Default is no-op. Subclasses can override to export environment variables
+        or perform runtime initialization dependent on the host environment.
+        """
+        return None

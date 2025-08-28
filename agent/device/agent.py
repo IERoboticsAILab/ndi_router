@@ -96,6 +96,11 @@ class DeviceAgent:
     def on_connect(self, client, userdata, flags, rc):
         # Re-subscribe happens automatically; publish statuses
         for mname, mod in self.modules.items():
+            try:
+                if hasattr(mod, "on_agent_connect"):
+                    mod.on_agent_connect()
+            except Exception:
+                pass
             self.publish_module_status(mname, mod.status_payload())
 
     def publish_meta(self):

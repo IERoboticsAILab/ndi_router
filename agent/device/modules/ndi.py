@@ -10,6 +10,20 @@ class NDIModule(Module):
         self.viewer_pid: int | None = None
         self.rec_pid: int | None = None
 
+    def on_agent_connect(self) -> None:
+        """Export NDI_PATH and adjust LD_LIBRARY_PATH when the agent connects."""
+        ndi_path = self.cfg.get("ndi_path")
+        ndi_env = self.cfg.get("ndi_env", self.cfg.get("env", {})) or {}
+        if isinstance(ndi_path, str) and ndi_path:
+            os.environ["NDI_PATH"] = ndi_path
+            if self.cfg.get("prepend_ld_library_path", True):
+                base = os.path.dirname(ndi_path)
+                lp = os.environ.get("LD_LIBRARY_PATH", "")
+                os.environ["LD_LIBRARY_PATH"] = f"{base}:{lp}" if lp else base
+        if isinstance(ndi_env, dict):
+            for k, v in ndi_env.items():
+                os.environ[str(k)] = str(v)
+
     def _env(self) -> Dict[str, str]:
         env = os.environ.copy()
         # Support both legacy keys and new ones
