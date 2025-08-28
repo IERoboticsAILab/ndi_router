@@ -12,4 +12,4 @@ mqtt:
   host: 10.205.10.7
   port: 1883
   username: mqtt
-  password: 123456789
+  password: "123456789"
