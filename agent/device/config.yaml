@@ -11,5 +11,5 @@ modules:
 mqtt:
   host: 127.0.0.1
   port: 1883
-  username: device-led-ndi
-  password: devpass
+  username: mqtt
+  password: 123456789

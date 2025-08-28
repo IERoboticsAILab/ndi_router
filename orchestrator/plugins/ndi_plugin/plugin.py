@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List
+import time
 
 from orchestrator_host.plugin_api import OrchestratorPlugin
 from orchestrator_host.services.events import ack
@@ -87,6 +88,14 @@ class NDIPlugin(OrchestratorPlugin):
 
         @r.get("/sources")
         def sources() -> Dict[str, List[str]]:
+            try:
+                discovered = _discover_ndi_source_names(timeout=3.0)
+                # If discovery returns something, use it; otherwise fall back
+                if discovered:
+                    return {"sources": discovered}
+            except Exception:
+                # Fall back to configured list on any error (module missing, etc.)
+                pass
             srcs = self.ctx.settings.get("sources", [])
             return {"sources": list(srcs)}
 
@@ -136,4 +145,64 @@ class NDIPlugin(OrchestratorPlugin):
     def ui_mount(self):
         return {"path": f"/ui/{self.module_name}", "template": "ndi.html", "title": "NDI"}
 
+
+
+def _discover_ndi_source_names(timeout: float = 3.0) -> List[str]:
+    """Discover NDI sources and return a list of human-readable names.
+
+    Prefer using the project's `ndi_discovery.list_all_ndi_sources` helper.
+    Fall back to direct cyndilib Finder usage if import is unavailable.
+    Returns a list like ["host (stream)", ...].
+    """
+    # Try to import helper from repo root
+    try:
+        from ndi_discovery import list_all_ndi_sources  # type: ignore
+    except Exception:
+        # Try adding repo root to sys.path (two levels up from this file)
+        try:
+            import sys
+            from pathlib import Path
+            repo_root = Path(__file__).resolve().parents[2]
+            if str(repo_root) not in sys.path:
+                sys.path.append(str(repo_root))
+            from ndi_discovery import list_all_ndi_sources  # type: ignore
+        except Exception:
+            list_all_ndi_sources = None  # type: ignore
+
+    if list_all_ndi_sources is not None:  # type: ignore
+        try:
+            items = list_all_ndi_sources(timeout=timeout)  # type: ignore
+            names: List[str] = []
+            for it in items:
+                name = it.get("name")
+                if name:
+                    names.append(name)
+                else:
+                    host = it.get("host", "")
+                    stream = it.get("stream", "")
+                    label = f"{host} ({stream})".strip()
+                    names.append(label)
+            return names
+        except Exception:
+            # Fall back to direct Finder path below
+            pass
+
+    # Fallback: direct Finder usage
+    from cyndilib.finder import Finder  # type: ignore
+    finder = Finder()
+    finder.open()
+    try:
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            changed = finder.wait_for_sources(timeout=end_time - time.time())
+            if changed:
+                finder.update_sources()
+            time.sleep(0.1)
+
+        names: List[str] = []
+        for src in finder.iter_sources():
+            names.append(src.name)
+        return names
+    finally:
+        finder.close()
 
