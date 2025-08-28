@@ -88,16 +88,14 @@ class NDIPlugin(OrchestratorPlugin):
 
         @r.get("/sources")
         def sources() -> Dict[str, List[str]]:
+            # Return only dynamically discovered sources; no configured fallback
+            discovered: List[str] = []
             try:
                 discovered = _discover_ndi_source_names(timeout=3.0)
-                # If discovery returns something, use it; otherwise fall back
-                if discovered:
-                    return {"sources": discovered}
             except Exception:
-                # Fall back to configured list on any error (module missing, etc.)
-                pass
-            srcs = self.ctx.settings.get("sources", [])
-            return {"sources": list(srcs)}
+                # On discovery error, return empty list
+                discovered = []
+            return {"sources": discovered}
 
         @r.get("/devices")
         def devices() -> Dict[str, Any]:
@@ -118,9 +116,12 @@ class NDIPlugin(OrchestratorPlugin):
             device_id = body.device_id
             source = body.source
             action = body.action or "start"
-            # Validate source in configured list if provided
-            srcs = self.ctx.settings.get("sources", [])
-            if srcs and source not in srcs:
+            # Validate against dynamically discovered sources only
+            try:
+                discovered = set(_discover_ndi_source_names(timeout=3.0))
+            except Exception:
+                discovered = set()
+            if discovered and source not in discovered:
                 raise HTTPException(status_code=400, detail="unknown source")
             # Validate device exists
             reg = self.ctx.registry.snapshot()

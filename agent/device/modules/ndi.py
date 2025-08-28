@@ -19,9 +19,41 @@ class NDIModule(Module):
         )
 
     def _run_bg(self, cmd: str) -> subprocess.Popen:
-        """Start a subprocess in its own process group (for clean termination)."""
-        return subprocess.Popen(shlex.split(cmd), stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
+        """Start a subprocess in its own process group (for clean termination).
+
+        Applies environment overrides from module cfg, supporting either:
+        - cfg["ndi_path"]: value or string like 'export NDI_PATH=/path/libndi.so'
+        - cfg["env"]: dict of additional environment variables
+        """
+        env = os.environ.copy()
+        ndi_path_cfg = self.cfg.get("ndi_path")
+        if isinstance(ndi_path_cfg, str):
+            val = ndi_path_cfg.strip()
+            if val.startswith("export "):
+                try:
+                    key_val = val.split(None, 1)[1]
+                    key, v = key_val.split("=", 1)
+                    env[key.strip()] = v.strip().strip('"').strip("'")
+                except Exception:
+                    pass
+            else:
+                env["NDI_PATH"] = val
+        # Arbitrary env overrides
+        extra_env = self.cfg.get("env", {})
+        if isinstance(extra_env, dict):
+            for k, v in extra_env.items():
+                try:
+                    env[str(k)] = str(v)
+                except Exception:
+                    continue
+
+        return subprocess.Popen(
+            shlex.split(cmd),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            preexec_fn=os.setsid,
+            env=env,
+        )
 
     def _kill(self, proc: subprocess.Popen | None):
         """SIGTERM the whole process group if the process is present."""
