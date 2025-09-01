@@ -10,7 +10,7 @@ ORCH_T   = LAB_PREFIX + "/orchestrator/{module}"
 
 # Envelope/validation settings
 MAX_PARAMS_BYTES = 16384
-ALLOWED_ACTORS = {"orchestrator", "app", "user", "test"}
+ALLOWED_ACTORS = {"orchestrator", "app", "user", "test", "api"}
 
 def now_iso() -> str:
     """Return current time in UTC ISO-8601 format with 'Z'."""
