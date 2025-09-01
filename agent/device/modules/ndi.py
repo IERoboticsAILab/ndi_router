@@ -28,16 +28,8 @@ class NDIModule(Module):
         env = os.environ.copy()
         # Support both legacy keys and new ones
         ndi_path = self.cfg.get("ndi_path")
-        ndi_env = self.cfg.get("ndi_env", self.cfg.get("env", {})) or {}
         if isinstance(ndi_path, str) and ndi_path:
             env["NDI_PATH"] = ndi_path
-            if self.cfg.get("prepend_ld_library_path", True):
-                base = os.path.dirname(ndi_path)
-                lp = env.get("LD_LIBRARY_PATH", "")
-                env["LD_LIBRARY_PATH"] = f"{base}:{lp}" if lp else base
-        if isinstance(ndi_env, dict):
-            for k, v in ndi_env.items():
-                env[str(k)] = str(v)
         return env
 
     def _spawn(self, cmd: str | list[str]) -> int:
