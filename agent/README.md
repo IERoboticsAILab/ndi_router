@@ -130,7 +130,7 @@ mqtt:
 ## NDI Module (`ndi`)
 
 ### Config keys
-- **ndi_path**: absolute path to libndi.so; also prepends its directory to `LD_LIBRARY_PATH` by default.
+- **ndi_path**: absolute path to libndi.so.
 - **ndi_env**: object. Additional environment key/values injected into subprocesses (legacy `env` also supported).
 - **start_cmd_template**: string. Must include `{source}` and can include `{device_id}`.
 - **set_input_restart**: boolean. If true, `set_input` will restart the player using `start_cmd_template`.
