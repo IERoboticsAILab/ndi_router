@@ -1,10 +1,10 @@
 ## Device Agent (lab-device-agent)
 
-Minimal, readable MQTT device agent for running modules (NDI, LED) on edge devices (e.g., Raspberry Pi). It exposes device-level controls, per-module controls, and a simple way to enable feature presets so you can assign a “design” to each device.
+Minimal, readable MQTT device agent for running modules (NDI) on edge devices (e.g., Raspberry Pi). It exposes device-level controls and per-module controls.
 
 ### Key ideas
 - **Simple structure**: one agent process, pluggable modules.
-- **Device-level controls**: labels, feature switching, and module add/remove.
+- **Device-level controls**: labels and module add/remove.
 - **Module lifecycle**: clean startup/shutdown, separate status and acks.
 - **Feature presets**: define named sets of modules and configs in YAML, apply at boot or at runtime.
 
@@ -38,7 +38,6 @@ sudo systemctl enable --now lab-device-agent
 - **`device/agent.py`**: Starts MQTT client, loads modules, routes messages, and publishes statuses/meta.
 - **`device/modules/base.py`**: `Module` abstract base class; provides `status_payload`, `apply_cfg`, optional `shutdown`.
 - **`device/modules/ndi.py`**: Runs NDI viewer/recorder commands; manages background processes.
-- **`device/modules/led.py`**: Simple LED stub; replace with real hardware calls.
 - **`common.py`**: Topic helpers, envelope/ack utilities, timestamps, JSON helpers.
 
 ### Message flow (high-level)
@@ -56,7 +55,7 @@ Prefix constants (from `common.py`):
 - `MODULE_T = "/lab/device/{device_id}/{module}"`
 
 ### Device topics
-- `DEVICE_T + "/meta"` (retain): device capabilities/labels/feature
+- `DEVICE_T + "/meta"` (retain): device capabilities/labels
 - `DEVICE_T + "/status"` (retain): online heartbeat
 - `DEVICE_T + "/cmd"`: device-level commands
 - `DEVICE_T + "/evt"`: device-level acks/events
@@ -126,37 +125,6 @@ mqtt:
   password: "123456789"
 ```
 
-### With feature presets (recommended)
-- `feature`: the name of the preset to apply at startup.
-- `features`: a map of `feature_name → modules-config`. Preset modules are merged with explicit `modules`; explicit entries override presets.
-
-```yaml
-device_id: rpi-01
-labels: ["zone-a", "display"]
-feature: display
-features:
-  display:
-    ndi:
-      ndi_path: '/usr/local/lib/libndi.so'
-      start_cmd_template: 'yuri_simple ndi_input[stream="{source}"] glx_window[fullscreen=True]'
-      set_input_restart: true
-  kiosk:
-    led:
-      # example defaults for kiosk LED
-      default_color: "#FF8800"
-modules:
-  # Optional overrides. These keys win over what the feature preset declares.
-  # led:
-  #   some_runtime_override: true
-mqtt:
-  host: 10.205.10.7
-  port: 1883
-  username: mqtt
-  password: "123456789"
-```
-
-Merging rule: `effective_modules = features[feature] (if set) merged with modules`; keys in `modules` override the preset.
-
 ---
 
 ## NDI Module (`ndi`)
@@ -187,32 +155,14 @@ Merging rule: `effective_modules = features[feature] (if set) merged with module
 
 ---
 
-## LED Module (`led`)
-
-### Purpose
-- Simple stub showing how to accept and reflect LED controls. Replace with your driver.
-
-### Commands (topic: `/lab/device/{device_id}/led/cmd`)
-- **off**: `{ "action": "off" }` → state becomes `idle`, `fields.mode="off"`
-- **solid**: `{ "action": "solid", "params": {"color": "#RRGGBB", "brightness": 255} }`
-- **effect**: `{ "action": "effect", "params": {"name": "rainbow", "speed": 0.8, "brightness": 180} }`
-- **brightness**: `{ "action": "brightness", "params": {"value": 128} }`
-
-### Status fields
-- `fields.mode`: `off|solid|effect`
-- Optional fields: `color`, `brightness`, `effect`, `speed`, `fps`
-
----
-
 ## Meta Payload
 Published on `/lab/device/{device_id}/meta` (retain):
 ```json
 {
   "device_id": "rpi-01",
-  "modules": ["ndi", "led"],
-  "capabilities": { "ndi": {"..."}, "led": {"..."} },
+  "modules": ["ndi"],
+  "capabilities": { "ndi": {"..."} },
   "labels": ["zone-a","display"],
-  "feature": "display",
   "version": "dev-0.1.0",
   "ts": "..."
 }
@@ -227,7 +177,7 @@ Published on `/lab/device/{device_id}/meta` (retain):
    - Optionally override `shutdown()` for cleanup
    - Update `self.state` and `self.fields` appropriately
 2. Register in `device/modules/__init__.py` by adding to `MODULE_MAP`.
-3. Add config under either a feature preset or `modules` in `device/config.yaml`.
+3. Add config under `modules` in `device/config.yaml`.
 4. Send commands to `/lab/device/{device_id}/{module}/cmd`.
 
 ### Minimal module example

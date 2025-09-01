@@ -1,6 +1,6 @@
 ## Orchestrator Host
 
-FastAPI-based orchestrator with a lightweight plugin system (NDI, LED). It subscribes to device meta/status to build a live registry, exposes REST endpoints and simple UIs per plugin, and relays/schedules commands to devices via MQTT.
+FastAPI-based orchestrator with a lightweight plugin system (NDI). It subscribes to device meta/status to build a live registry, exposes REST endpoints and simple UIs per plugin, and relays/schedules commands to devices via MQTT.
 
 ### Highlights
 - **Plugin architecture**: add features by creating a small plugin class.
@@ -21,13 +21,11 @@ pip install -r requirements.txt
 uvicorn orchestrator_host.host:app --host 0.0.0.0 --port 8080
 ```
 
-### Systemd
-- Edit `systemd/lab-orchestrator-host.service` with absolute paths
-- Install and enable:
+### Docker
+- Build and run with Docker (see `Dockerfile`):
 ```bash
-sudo cp systemd/lab-orchestrator-host.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now lab-orchestrator-host
+make docker-build
+make docker-run
 ```
 
 ---
@@ -44,7 +42,7 @@ sudo systemctl enable --now lab-orchestrator-host
 
 ### Plugins
 - Located in `plugins/<name>_plugin/plugin.py`. Each plugin:
-  - sets `module_name` (e.g., `"ndi"`, `"led"`)
+  - sets `module_name` (e.g., `"ndi"`)
   - implements `mqtt_topic_filters()` so the host can subscribe and forward
   - implements `handle_mqtt(topic, payload)` to react to orchestrator-level commands
   - can expose a REST API with `api_router()` and a UI via `ui_mount()`
@@ -73,7 +71,6 @@ PLUGINS = [
         # Plugin-specific settings
         "sources": ["NDI-Source-1", "NDI-Source-2"]
     }},
-    # {"module": "led", "path": "plugins.led_plugin.plugin:LEDPlugin", "settings": {}},
 ]
 
 MQTT = {"host": "10.205.10.7", "port": 1883, "username": "mqtt", "password": "123456789"}
@@ -110,15 +107,6 @@ MQTT = {"host": "10.205.10.7", "port": 1883, "username": "mqtt", "password": "12
   - `GET /api/ndi/devices`: returns devices advertising the `ndi` module
   - `POST /api/ndi/send` `{ device_id, action, source }`: dispatch to device
 - UI: `GET /ui/ndi` basic controls to select device/source and start/stop/set input.
-
-### LED Plugin
-- Orchestrator topic: `/lab/orchestrator/led/cmd`
-- Events: `/lab/orchestrator/led/evt`
-- Pass-through device actions: `effect`, `solid`, `off`, `brightness`
-- Host-level actions: `reserve`, `release`, `schedule` (same pattern as NDI)
-- REST API:
-  - `GET /api/led/status`: returns registry snapshot
-- UI: `GET /ui/led` basic shell (template) you can extend.
 
 ---
 

@@ -38,6 +38,16 @@ class SharedMQTT:
     def publish_json(self, topic: str, obj: Dict[str, Any], qos=1, retain=False):
         self.client.publish(topic, json.dumps(obj), qos=qos, retain=retain)
 
+    def publish_raw(self, topic: str, payload: str | bytes | None = None, qos: int = 1, retain: bool = False):
+        data: bytes
+        if payload is None:
+            data = b""
+        elif isinstance(payload, str):
+            data = payload.encode("utf-8")
+        else:
+            data = payload
+        self.client.publish(topic, data, qos=qos, retain=retain)
+
     def _on_message(self, _c, _u, msg):
         try:
             payload = json.loads(msg.payload.decode("utf-8"))

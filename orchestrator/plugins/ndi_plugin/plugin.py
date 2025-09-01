@@ -188,8 +188,7 @@ def _discover_ndi_source_names(timeout: float = 3.0) -> List[str]:
             # Fall back to direct Finder path below
             pass
 
-    # Fallback: direct Finder usage
-    from cyndilib.finder import Finder  # type: ignore
+    from cyndilib.finder import Finder 
     finder = Finder()
     finder.open()
     try:

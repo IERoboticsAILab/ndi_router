@@ -23,12 +23,6 @@ class DeviceAgent:
         self.labels = cfg.get("labels", [])
         self.modules: Dict[str, Any] = {}
         modules_cfg: Dict[str, Any] = {}
-        features_cfg: Dict[str, Any] = cfg.get("features") or {}
-        feature_name = cfg.get("feature")
-        if feature_name and feature_name in features_cfg:
-            preset = features_cfg.get(feature_name) or {}
-            if isinstance(preset, dict):
-                modules_cfg.update(preset)
         explicit = cfg.get("modules") or {}
         if isinstance(explicit, dict):
             modules_cfg.update(explicit)
@@ -109,7 +103,6 @@ class DeviceAgent:
             "modules": list(self.modules.keys()),
             "capabilities": {m: self.modules[m].cfg for m in self.modules},
             "labels": self.labels,
-            "feature": self.cfg.get("feature"),
             "version": "dev-0.1.0",
             "ts": now_iso()
         }
@@ -227,35 +220,6 @@ class DeviceAgent:
             del self.modules[mname]
             self.publish_meta()
             return True, None, {"removed": mname}
-
-        if action == "apply_feature":
-            feature_name = params.get("feature")
-            features_cfg = self.cfg.get("features") or {}
-            if not feature_name or feature_name not in features_cfg:
-                return False, "unknown feature", {}
-            new_modules_cfg = features_cfg.get(feature_name) or {}
-            # Tear down existing modules
-            for existing in list(self.modules.keys()):
-                try:
-                    self._unsubscribe_module_topics(existing)
-                except Exception:
-                    pass
-                try:
-                    self.modules[existing].shutdown()
-                except Exception:
-                    pass
-                del self.modules[existing]
-            # Create new modules
-            for new_name, new_cfg in (new_modules_cfg or {}).items():
-                if new_name not in MODULE_MAP:
-                    continue
-                mod = MODULE_MAP[new_name](self.device_id, new_cfg)
-                self.modules[new_name] = mod
-                self._subscribe_module_topics(new_name)
-                self.publish_module_status(new_name, mod.status_payload())
-            self.cfg["feature"] = feature_name
-            self.publish_meta()
-            return True, None, {"feature": feature_name, "modules": list(self.modules.keys())}
 
         return False, f"unknown action: {action}", {}
 

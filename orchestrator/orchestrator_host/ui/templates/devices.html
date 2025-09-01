@@ -11,8 +11,8 @@
       <th>Online</th>
       <th>Labels</th>
       <th>Modules</th>
-      <th>Feature</th>
       <th>Updated</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -54,7 +54,20 @@ function render(reg) {
     const labels = (d.labels || []).join(', ');
     const modules = Array.isArray(d.modules) ? d.modules.join(', ') : '';
     const updated = d.ts || (d.status && d.status.ts) || '';
-    tr.innerHTML = `<td>${esc(id)}</td><td>${online ? 'yes' : 'no'}</td><td>${esc(labels)}</td><td>${esc(modules)}</td><td>${esc(d.feature || '')}</td><td>${esc(updated)}</td>`;
+    tr.innerHTML = `<td>${esc(id)}</td><td>${online ? 'yes' : 'no'}</td><td>${esc(labels)}</td><td>${esc(modules)}</td><td>${esc(updated)}</td>`;
+    const tdActions = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.textContent = 'Remove';
+    btn.onclick = async () => {
+      if (!confirm(`Remove device ${id}? This clears retained meta/status.`)) return;
+      try {
+        const r = await fetch(`/api/registry/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!r.ok) { const e = await r.text(); alert('Failed: ' + e); return; }
+        loadRegistry();
+      } catch (e) { console.error(e); alert('Error removing device'); }
+    };
+    tdActions.appendChild(btn);
+    tr.appendChild(tdActions);
     tbody.appendChild(tr);
   });
 

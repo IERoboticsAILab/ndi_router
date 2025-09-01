@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -85,6 +85,22 @@ async def api_registry():
     snap["ts"] = now_iso()
     snap["modules"] = list(_plugins.keys())
     return JSONResponse(content=snap)
+
+@app.delete("/api/registry/devices/{device_id}")
+async def delete_device(device_id: str):
+    if device_id not in registry.devices:
+        raise HTTPException(status_code=404, detail="unknown device")
+    # Clear retained meta/status from broker so the device does not reappear
+    mqtt.publish_raw(f"/lab/device/{device_id}/meta", payload=None, qos=1, retain=True)
+    mqtt.publish_raw(f"/lab/device/{device_id}/status", payload=None, qos=1, retain=True)
+    # Remove from registry and publish snapshot
+    try:
+        del registry.devices[device_id]
+    except Exception:
+        pass
+    snap = registry.snapshot(); snap["ts"] = now_iso(); snap["modules"] = list(_plugins.keys())
+    mqtt.publish_json("/lab/orchestrator/registry", snap, qos=1, retain=True)
+    return {"ok": True, "removed": device_id}
 
 @app.get("/ui/devices", response_class=HTMLResponse)
 async def devices_page(request: Request):
