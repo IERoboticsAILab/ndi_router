@@ -1,8 +1,6 @@
 from typing import Dict, Any
 from .base import Module
-import subprocess, shlex, os, signal, time, logging
-
-logger = logging.getLogger("device.ndi")
+import subprocess, shlex, os, signal, time
 
 class NDIModule(Module):
     name = "ndi"
@@ -13,17 +11,14 @@ class NDIModule(Module):
         self.rec_pid: int | None = None
 
     def on_agent_connect(self) -> None:
-        """Export NDI_PATH and inject custom env when the agent connects."""
+        """Export NDI_PATH (no LD_LIBRARY_PATH manipulation)."""
         ndi_path = self.cfg.get("ndi_path")
         ndi_env = self.cfg.get("ndi_env", self.cfg.get("env", {})) or {}
         if isinstance(ndi_path, str) and ndi_path:
             os.environ["NDI_PATH"] = ndi_path
-            logger.info("NDI env configured: NDI_PATH=%s", ndi_path)
         if isinstance(ndi_env, dict):
             for k, v in ndi_env.items():
                 os.environ[str(k)] = str(v)
-            if ndi_env:
-                logger.info("Injected %d custom env vars for NDI", len(ndi_env))
 
     def _env(self) -> Dict[str, str]:
         env = os.environ.copy()
@@ -35,36 +30,14 @@ class NDIModule(Module):
 
     def _spawn(self, cmd: str | list[str]) -> int:
         args = cmd if isinstance(cmd, list) else shlex.split(cmd)
-        logger.info("Spawning process: %s", " ".join(shlex.quote(a) for a in args))
-        try:
-            proc = subprocess.Popen(
-                args,
-                preexec_fn=os.setsid,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                env=self._env(),
-            )
-        except FileNotFoundError as e:
-            logger.error("Executable not found when starting: %s", e)
-            raise
-        except Exception as e:
-            logger.exception("Failed to start process: %s", e)
-            raise
-        pid = int(proc.pid)
-        logger.info("Started process pid=%d", pid)
-        return pid
-
-    def _process_exists(self, pid: int) -> bool:
-        if not pid:
-            return False
-        try:
-            os.kill(pid, 0)
-            return True
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            # Process may exist but we cannot signal it
-            return True
+        proc = subprocess.Popen(
+            args,
+            preexec_fn=os.setsid,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=self._env(),
+        )
+        return int(proc.pid)
 
     def _killpg(self, pid: int, sig: signal.Signals = signal.SIGTERM, grace: float = 2.0) -> None:
         if not pid:
@@ -74,21 +47,18 @@ class NDIModule(Module):
         except Exception:
             return
         try:
-            logger.info("Sending %s to pgid=%d (pid=%d)", sig.name if hasattr(sig, 'name') else str(sig), pgid, pid)
             os.killpg(pgid, sig)
             t0 = time.time()
             while time.time() - t0 < grace:
                 try:
                     os.killpg(pgid, 0)
                 except ProcessLookupError:
-                    logger.info("Process group %d terminated", pgid)
                     return
                 time.sleep(0.1)
         except ProcessLookupError:
             return
         # Escalate
         try:
-            logger.warning("Escalating to SIGKILL for pgid=%d", pgid)
             os.killpg(pgid, signal.SIGKILL)
         except ProcessLookupError:
             pass
@@ -115,22 +85,9 @@ class NDIModule(Module):
             if not cmd_t:
                 return False, "start_cmd_template not set", {}
             cmd = cmd_t.format(source=src, device_id=self.device_id)
-            logger.info("Starting NDI viewer for source=%s", src)
-            try:
-                self.viewer_pid = self._spawn(cmd)
-            except Exception as e:
-                return False, f"spawn_failed:{e}", {}
-            # Briefly verify the process exists
-            time.sleep(0.1)
-            if not self._process_exists(self.viewer_pid):
-                logger.error("Viewer process exited immediately (pid=%s)", str(self.viewer_pid))
-                self.viewer_pid = None
-                self.state = "idle"
-                self.fields.update({"input": None, "pid": None})
-                return False, "viewer_exited_early", {}
+            self.viewer_pid = self._spawn(cmd)
             self.state = "running"
             self.fields.update({"input": src, "pid": self.viewer_pid})
-            logger.info("NDI viewer running pid=%d input=%s", self.viewer_pid, src)
             return True, None, {"pid": self.viewer_pid, "input": src}
 
         if action == "stop":
@@ -139,10 +96,10 @@ class NDIModule(Module):
                 self.viewer_pid = None
             self.state = "idle"
             self.fields.update({"input": None, "pid": None})
-            logger.info("NDI viewer stopped")
             return True, None, {}
 
         if action == "set_input":
+            print("Test")
             src = params.get("source")
             if not src:
                 return False, "missing source", {}
@@ -152,20 +109,13 @@ class NDIModule(Module):
                     self._killpg(self.viewer_pid)
                     self.viewer_pid = None
                 cmd_t = self.cfg.get("start_cmd_template")
+                print("Test3")
                 if not cmd_t:
                     return False, "start_cmd_template not set", {}
                 cmd = cmd_t.format(source=src, device_id=self.device_id)
-                logger.info("Restarting NDI viewer with new input=%s", src)
-                try:
-                    self.viewer_pid = self._spawn(cmd)
-                except Exception as e:
-                    return False, f"spawn_failed:{e}", {}
-                time.sleep(0.1)
-                if not self._process_exists(self.viewer_pid):
-                    logger.error("Viewer process exited immediately after restart (pid=%s)", str(self.viewer_pid))
-                    self.viewer_pid = None
-                    self.fields["pid"] = None
-                    return False, "viewer_exited_early", {"input": src}
+                self.viewer_pid = self._spawn(cmd)
+                print("Test2")
+                print(f"Viewer pid: {self.viewer_pid}")
                 self.fields["pid"] = self.viewer_pid
             return True, None, {"input": src, "pid": self.viewer_pid}
 
@@ -179,17 +129,7 @@ class NDIModule(Module):
             if not cmd_t:
                 return False, "record_start_cmd_template not set", {}
             cmd = cmd_t.format(source=src, device_id=self.device_id)
-            logger.info("Starting NDI recorder for source=%s", src)
-            try:
-                self.rec_pid = self._spawn(cmd)
-            except Exception as e:
-                return False, f"spawn_failed:{e}", {}
-            time.sleep(0.1)
-            if not self._process_exists(self.rec_pid):
-                logger.error("Recorder process exited immediately (pid=%s)", str(self.rec_pid))
-                self.rec_pid = None
-                self.fields.update({"recording": False, "record_pid": None})
-                return False, "recorder_exited_early", {}
+            self.rec_pid = self._spawn(cmd)
             self.fields.update({"recording": True, "record_pid": self.rec_pid})
             return True, None, {"recording": True, "record_pid": self.rec_pid}
 
@@ -198,7 +138,6 @@ class NDIModule(Module):
                 self._killpg(self.rec_pid, signal.SIGINT)  # allow graceful finalize
                 self.rec_pid = None
             self.fields.update({"recording": False, "record_pid": None})
-            logger.info("NDI recorder stopped")
             return True, None, {"recording": False}
 
         return False, f"unknown action: {action}", {}
