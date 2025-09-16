@@ -4,7 +4,16 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from typing import List
 import paramiko
-from ndi_discovery import list_all_ndi_sources
+try:
+    from ndi_discovery import list_all_ndi_sources
+except ModuleNotFoundError:
+    # Allow running "python src/main.py" by adding repo root to sys.path
+    import sys
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from ndi_discovery import list_all_ndi_sources
 import os
 import json
 import time
@@ -62,3 +71,9 @@ def web_ui(request: Request):
     sources = list_all_ndi_sources()
     devices = load_output_devices()
     return templates.TemplateResponse("index.html", {"request": request, "sources": sources, "devices": devices})
+
+if __name__ == "__main__":
+    import uvicorn, os as _os
+    _host = _os.getenv("HOST", "127.0.0.1")
+    _port = int(_os.getenv("PORT", "8000"))
+    uvicorn.run(app, host=_host, port=_port)
