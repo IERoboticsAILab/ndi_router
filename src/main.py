@@ -48,9 +48,12 @@ def route_stream(stream_name: str = Form(...), devices: List[str] = Form(...)):
             try:
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                key = paramiko.Ed25519Key(filename="/Users/roboticslab/.ssh/ndi_key")
                 ssh.connect(
                     hostname=device["host"],
                     username=device["user"],
+                    pkey=key
+
                 )
                 # Kill any existing yuri_simple processes (optional, for idempotency)
                 kill_cmd = "pkill -f 'yuri_simple'"
